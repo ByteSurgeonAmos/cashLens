@@ -11,7 +11,7 @@ export const registerSchema = z.object({
     .min(8, "Password must be at least 8 characters")
     .regex(
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character"
+      "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (@$!%*?&)"
     ),
   name: z.string().min(3, "Name must be at least 3 characters").optional(),
 });
@@ -51,11 +51,14 @@ export async function createUser(data: {
 
     const hashedPassword = await hashPassword(validatedData.password);
 
+    const randomAvatar = generateRandomAvatar(validatedData.email);
+
     const user = await prisma.user.create({
       data: {
         email: validatedData.email,
         name: validatedData.name || validatedData.email.split("@")[0],
         hashedPassword: hashedPassword,
+        image: randomAvatar,
       },
       select: {
         id: true,
@@ -86,6 +89,7 @@ export async function getUserByEmail(email: string) {
       name: true,
       image: true,
       hashedPassword: true,
+      twoFactorEnabled: true,
     },
   });
 }
@@ -121,7 +125,6 @@ export function resetRateLimit(email: string): void {
 
 export async function createDefaultCategories(userId: string) {
   const defaultCategories = [
-    // Income categories
     { name: "Salary", icon: "💼", color: "#22c55e", type: "INCOME" as const },
     {
       name: "Freelance",
@@ -142,7 +145,6 @@ export async function createDefaultCategories(userId: string) {
       type: "INCOME" as const,
     },
 
-    // Expense categories
     {
       name: "Food & Dining",
       icon: "🍽️",
@@ -203,4 +205,44 @@ export async function createDefaultCategories(userId: string) {
   } catch (error) {
     console.error("Error creating default categories:", error);
   }
+}
+
+export function generateRandomAvatar(email: string): string {
+  const emailHash = email.split("").reduce((hash, char) => {
+    return (hash << 5) - hash + char.charCodeAt(0);
+  }, 0);
+
+  const avatarServices = [
+    `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
+      email
+    )}`,
+    `https://api.dicebear.com/7.x/personas/svg?seed=${encodeURIComponent(
+      email
+    )}`,
+    `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+      email
+    )}`,
+    `https://api.dicebear.com/7.x/fun-emoji/svg?seed=${encodeURIComponent(
+      email
+    )}`,
+  ];
+
+  const serviceIndex = Math.abs(emailHash) % avatarServices.length;
+  return avatarServices[serviceIndex];
+}
+
+export function isEmailPasswordUser(user: {
+  hashedPassword?: string | null;
+}): boolean {
+  return !!user.hashedPassword;
+}
+
+export function canChangePassword(user: {
+  hashedPassword?: string | null;
+}): boolean {
+  return isEmailPasswordUser(user);
+}
+
+export function canUse2FA(user: { hashedPassword?: string | null }): boolean {
+  return isEmailPasswordUser(user);
 }

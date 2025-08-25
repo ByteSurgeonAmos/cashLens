@@ -51,6 +51,20 @@ export const authOptions: NextAuthOptions = {
 
           const { email, password } = validatedCredentials;
 
+          // Special case: 2FA already verified
+          if (password === "__2FA_VERIFIED__") {
+            const user = await getUserByEmail(email);
+            if (user) {
+              return {
+                id: user.id,
+                email: user.email,
+                name: user.name,
+                image: user.image,
+              };
+            }
+            return null;
+          }
+
           if (!checkRateLimit(email)) {
             console.warn(`Rate limit exceeded for email: ${email}`);
             throw new Error("Too many login attempts. Please try again later.");
@@ -80,6 +94,12 @@ export const authOptions: NextAuthOptions = {
           if (!isValidPassword) {
             console.warn(`Invalid password attempt for user: ${email}`);
             throw new Error("Invalid email or password");
+          }
+
+          // Check if user has 2FA enabled
+          if (user.twoFactorEnabled) {
+            // Instead of proceeding with login, throw a special error to indicate 2FA is required
+            throw new Error("2FA_REQUIRED");
           }
 
           resetRateLimit(email);

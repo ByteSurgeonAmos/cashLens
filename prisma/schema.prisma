@@ -43,7 +43,12 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  hashedPassword String?   // For credentials authentication
+  hashedPassword String?   
+  twoFactorSecret String?  
+  twoFactorEnabled Boolean @default(false) 
+  backupCodes   String[] 
+  currency      String    @default("USD")
+  theme         String    @default("light")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
