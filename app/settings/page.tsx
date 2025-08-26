@@ -5,7 +5,9 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Layout } from "../../components/layout/Layout";
+import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
 import { generateRandomAvatar } from "../../lib/auth/auth-utils";
+import { useCurrency } from "../../contexts/CurrencyContext";
 
 interface UserProfile {
   name: string;
@@ -15,22 +17,10 @@ interface UserProfile {
   hashedPassword: boolean;
 }
 
-const CURRENCIES = [
-  { code: "USD", name: "US Dollar", symbol: "$" },
-  { code: "EUR", name: "Euro", symbol: "€" },
-  { code: "GBP", name: "British Pound", symbol: "£" },
-  { code: "JPY", name: "Japanese Yen", symbol: "¥" },
-  { code: "CAD", name: "Canadian Dollar", symbol: "C$" },
-  { code: "AUD", name: "Australian Dollar", symbol: "A$" },
-  { code: "CHF", name: "Swiss Franc", symbol: "CHF" },
-  { code: "CNY", name: "Chinese Yuan", symbol: "¥" },
-  { code: "INR", name: "Indian Rupee", symbol: "₹" },
-  { code: "KES", name: "Kenyan Shillings", symbol: "KES" },
-];
-
 export default function SettingsPage() {
   const { data: session, status, update } = useSession();
   const router = useRouter();
+  const { currency, setCurrency, currencies } = useCurrency();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -67,8 +57,9 @@ export default function SettingsPage() {
     showBackupCodes: false,
   });
 
-  const [currency, setCurrency] = useState("USD");
   const [theme, setTheme] = useState("light");
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -86,9 +77,7 @@ export default function SettingsPage() {
       fetchUserProfile();
     }
 
-    const savedCurrency = localStorage.getItem("cashLens_currency");
     const savedTheme = localStorage.getItem("cashLens_theme");
-    if (savedCurrency) setCurrency(savedCurrency);
     if (savedTheme) setTheme(savedTheme);
   }, [session, status, router]);
 
@@ -355,16 +344,51 @@ export default function SettingsPage() {
     }
   };
 
-  const handleCurrencyChange = (newCurrency: string) => {
-    setCurrency(newCurrency);
-    localStorage.setItem("cashLens_currency", newCurrency);
-    setSuccess(`Currency changed to ${newCurrency}`);
+  const handleCurrencyChange = async (newCurrencyCode: string) => {
+    const newCurrency = currencies.find((c) => c.code === newCurrencyCode);
+    if (newCurrency) {
+      try {
+        await setCurrency(newCurrency);
+        setSuccess(`Currency changed to ${newCurrency.name}`);
+      } catch (error) {
+        setError("Failed to update currency");
+      }
+    }
   };
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     localStorage.setItem("cashLens_theme", newTheme);
     setSuccess(`Theme changed to ${newTheme}`);
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("/api/user/delete-account", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Close modal and redirect
+        setShowDeleteConfirmation(false);
+        await router.push("/");
+        window.location.reload();
+      } else {
+        setError(result.message || "Failed to delete account");
+      }
+    } catch (error) {
+      setError("An error occurred while deleting account");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (status === "loading") {
@@ -379,31 +403,27 @@ export default function SettingsPage() {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto p-6 space-y-8">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-            Settings
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
+      <div className="max-w-4xl mx-auto space-y-6">
+        <div className="card">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Settings</h1>
+          <p className="text-gray-600">
             Manage your account settings and preferences
           </p>
         </div>
 
         {success && (
-          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-700 rounded-lg p-4">
-            <p className="text-green-600 dark:text-green-400 text-sm">
-              {success}
-            </p>
+          <div className="bg-success-50 border border-success-200 rounded-lg p-4">
+            <p className="text-success-600 text-sm">{success}</p>
           </div>
         )}
         {error && (
-          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4">
-            <p className="text-red-600 dark:text-red-400 text-sm">{error}</p>
+          <div className="bg-danger-50 border border-danger-200 rounded-lg p-4">
+            <p className="text-danger-600 text-sm">{error}</p>
           </div>
         )}
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
             Profile Information
           </h2>
 
@@ -432,23 +452,19 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     onClick={generateNewAvatar}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    className="btn-primary text-sm"
                   >
                     Generate New Avatar
                   </button>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                  <p className="text-xs text-gray-500">
                     Click to get a new random avatar
                   </p>
                 </div>
               )}
             </div>
 
-            {/* Name Field */}
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
+              <label className="label" htmlFor="name">
                 Full Name
               </label>
               {isEditingProfile ? (
@@ -463,29 +479,20 @@ export default function SettingsPage() {
                   placeholder="Enter your full name"
                 />
               ) : (
-                <p className="text-gray-900 dark:text-white py-2">
-                  {profile.name}
-                </p>
+                <p className="text-gray-900 py-2">{profile.name}</p>
               )}
             </div>
 
-            {/* Email Field (Read-only) */}
             <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
+              <label className="label" htmlFor="email">
                 Email Address
               </label>
-              <p className="text-gray-900 dark:text-white py-2">
-                {profile.email}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              <p className="text-gray-900 py-2">{profile.email}</p>
+              <p className="text-xs text-gray-500 mt-1">
                 Email cannot be changed
               </p>
             </div>
 
-            {/* Action Buttons */}
             <div className="flex space-x-4 pt-4">
               {isEditingProfile ? (
                 <>
@@ -496,10 +503,7 @@ export default function SettingsPage() {
                   >
                     {isLoading ? "Saving..." : "Save Changes"}
                   </button>
-                  <button
-                    onClick={handleCancelEdit}
-                    className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-                  >
+                  <button onClick={handleCancelEdit} className="btn-secondary">
                     Cancel
                   </button>
                 </>
@@ -515,24 +519,20 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Preferences */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
             Preferences
           </h2>
 
           <div className="space-y-6">
-            {/* Currency Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Default Currency
-              </label>
+              <label className="label">Default Currency</label>
               <select
-                value={currency}
+                value={currency.code}
                 onChange={(e) => handleCurrencyChange(e.target.value)}
                 className="input-field max-w-xs"
               >
-                {CURRENCIES.map((curr) => (
+                {currencies.map((curr) => (
                   <option key={curr.code} value={curr.code}>
                     {curr.code} - {curr.name} ({curr.symbol})
                   </option>
@@ -540,18 +540,15 @@ export default function SettingsPage() {
               </select>
             </div>
 
-            {/* Theme Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Theme
-              </label>
+              <label className="label">Theme</label>
               <div className="flex space-x-4">
                 <button
                   onClick={() => handleThemeChange("light")}
                   className={`px-4 py-2 rounded-lg border transition-colors ${
                     theme === "light"
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                      ? "bg-primary-600 text-white border-primary-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                   }`}
                 >
                   ☀️ Light
@@ -560,8 +557,8 @@ export default function SettingsPage() {
                   onClick={() => handleThemeChange("dark")}
                   className={`px-4 py-2 rounded-lg border transition-colors ${
                     theme === "dark"
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600"
+                      ? "bg-primary-600 text-white border-primary-600"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
                   }`}
                 >
                   🌙 Dark
@@ -571,21 +568,19 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Security Settings - Only show for email/password users */}
         {profile.hashedPassword && (
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+          <div className="card">
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
               Security
             </h2>
 
             <div className="space-y-6">
-              {/* Two-Factor Authentication */}
-              <div className="flex items-center justify-between py-4 border-b border-gray-100 dark:border-gray-600">
+              <div className="flex items-center justify-between py-4 border-b border-gray-100">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                  <h3 className="text-sm font-medium text-gray-900">
                     Two-Factor Authentication
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-gray-500 mt-1">
                     Add an extra layer of security to your account
                   </p>
                 </div>
@@ -593,8 +588,8 @@ export default function SettingsPage() {
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${
                       profile.twoFactorEnabled
-                        ? "bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400"
-                        : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                        ? "bg-success-100 text-success-800"
+                        : "bg-gray-100 text-gray-800"
                     }`}
                   >
                     {profile.twoFactorEnabled ? "Enabled" : "Disabled"}
@@ -605,7 +600,7 @@ export default function SettingsPage() {
                         ? handle2FADisable
                         : handle2FASetup
                     }
-                    className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                    className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                     disabled={isLoading}
                   >
                     {profile.twoFactorEnabled ? "Disable" : "Setup"}
@@ -613,19 +608,18 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              {/* Change Password */}
               <div className="flex items-center justify-between py-4">
                 <div>
-                  <h3 className="text-sm font-medium text-gray-900 dark:text-white">
+                  <h3 className="text-sm font-medium text-gray-900">
                     Password
                   </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                  <p className="text-sm text-gray-500 mt-1">
                     Change your account password
                   </p>
                 </div>
                 <button
                   onClick={() => setShowPasswordChange(true)}
-                  className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 text-sm font-medium"
+                  className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                 >
                   Change Password
                 </button>
@@ -634,19 +628,16 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Password Change Modal */}
         {showPasswordChange && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="card w-full max-w-md">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Change Password
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Current Password
-                  </label>
+                  <label className="label">Current Password</label>
                   <input
                     type="password"
                     value={passwordData.currentPassword}
@@ -662,9 +653,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    New Password
-                  </label>
+                  <label className="label">New Password</label>
                   <input
                     type="password"
                     value={passwordData.newPassword}
@@ -680,10 +669,7 @@ export default function SettingsPage() {
                   {passwordErrors.length > 0 && (
                     <div className="mt-2 space-y-1">
                       {passwordErrors.map((error, index) => (
-                        <p
-                          key={index}
-                          className="text-xs text-red-600 dark:text-red-400"
-                        >
+                        <p key={index} className="text-xs text-danger-600">
                           • {error}
                         </p>
                       ))}
@@ -692,9 +678,7 @@ export default function SettingsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Confirm New Password
-                  </label>
+                  <label className="label">Confirm New Password</label>
                   <input
                     type="password"
                     value={passwordData.confirmPassword}
@@ -728,7 +712,7 @@ export default function SettingsPage() {
                     });
                     setPasswordErrors([]);
                   }}
-                  className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
@@ -737,11 +721,10 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* 2FA Setup Modal */}
         {show2FASetup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 w-full max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <div className="card w-full max-w-md">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Setup Two-Factor Authentication
               </h3>
 
@@ -756,16 +739,14 @@ export default function SettingsPage() {
                           className="w-48 h-48 mx-auto"
                         />
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                      <p className="text-sm text-gray-600 mt-2">
                         Scan this QR code with your authenticator app
                       </p>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      Verification Code
-                    </label>
+                    <label className="label">Verification Code</label>
                     <input
                       type="text"
                       value={twoFAData.verificationCode}
@@ -779,7 +760,7 @@ export default function SettingsPage() {
                       placeholder="000000"
                       maxLength={6}
                     />
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    <p className="text-xs text-gray-500 mt-1">
                       Enter the 6-digit code from your authenticator app
                     </p>
                   </div>
@@ -803,7 +784,7 @@ export default function SettingsPage() {
                           showBackupCodes: false,
                         });
                       }}
-                      className="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                      className="btn-secondary"
                     >
                       Cancel
                     </button>
@@ -812,9 +793,9 @@ export default function SettingsPage() {
               ) : (
                 <div className="space-y-4">
                   <div className="text-center">
-                    <div className="w-12 h-12 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-3">
                       <svg
-                        className="w-6 h-6 text-green-600 dark:text-green-400"
+                        className="w-6 h-6 text-success-600"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -827,29 +808,29 @@ export default function SettingsPage() {
                         />
                       </svg>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-900 dark:text-white">
+                    <h4 className="text-lg font-medium text-gray-900">
                       2FA Enabled Successfully!
                     </h4>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                    <p className="text-sm text-gray-600 mt-1">
                       Please save these backup codes in a secure location
                     </p>
                   </div>
 
-                  <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 dark:text-white mb-2">
+                  <div className="bg-gray-50 rounded-lg p-4">
+                    <h5 className="font-medium text-gray-900 mb-2">
                       Backup Codes
                     </h5>
                     <div className="grid grid-cols-2 gap-2 text-sm font-mono">
                       {twoFAData.backupCodes.map((code, index) => (
                         <div
                           key={index}
-                          className="bg-white dark:bg-gray-600 p-2 rounded text-center"
+                          className="bg-white p-2 rounded text-center"
                         >
                           {code}
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                    <p className="text-xs text-gray-500 mt-2">
                       Each backup code can only be used once. Store them safely!
                     </p>
                   </div>
@@ -875,21 +856,67 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Account Type Info - Show for OAuth users */}
+        {/* Delete Account Confirmation Modal */}
+        <ConfirmationModal
+          isOpen={showDeleteConfirmation}
+          onClose={() => {
+            setShowDeleteConfirmation(false);
+            setDeleteConfirmationText("");
+            setError("");
+          }}
+          onConfirm={() => {
+            // Only proceed if validation passes
+            if (deleteConfirmationText === "DELETE") {
+              handleDeleteAccount();
+            } else {
+              setError("Please type DELETE to confirm account deletion");
+            }
+          }}
+          title="Delete Your Account"
+          message={
+            <div className="space-y-4">
+              <p className="text-gray-600">
+                This action cannot be undone. This will permanently delete your
+                account and remove all your data from our servers.
+              </p>
+              <div>
+                <label className="label text-sm font-medium text-gray-700">
+                  Type <span className="font-bold text-danger-600">DELETE</span>{" "}
+                  to confirm:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmationText}
+                  onChange={(e) => setDeleteConfirmationText(e.target.value)}
+                  className="input-field w-full mt-1"
+                  placeholder="DELETE"
+                />
+              </div>
+              {error && (
+                <div className="text-sm text-danger-600 bg-danger-50 p-3 rounded-lg">
+                  {error}
+                </div>
+              )}
+            </div>
+          }
+          confirmText="Delete Account"
+          cancelText="Cancel"
+          confirmButtonStyle="danger"
+          isLoading={isLoading}
+        />
+
         {!profile.hashedPassword && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 rounded-2xl shadow-sm border border-blue-100 dark:border-blue-700 p-6">
-            <h2 className="text-xl font-semibold text-blue-900 dark:text-blue-300 mb-4">
+          <div className="bg-primary-50 rounded-lg border border-primary-200 p-6">
+            <h2 className="text-xl font-semibold text-primary-900 mb-4">
               Account Security
             </h2>
             <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 text-blue-600 dark:text-blue-400 mt-0.5">
-                🔒
-              </div>
+              <div className="w-6 h-6 text-primary-600 mt-0.5">🔒</div>
               <div>
-                <h3 className="text-sm font-medium text-blue-900 dark:text-blue-300">
+                <h3 className="text-sm font-medium text-primary-900">
                   OAuth Account
                 </h3>
-                <p className="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                <p className="text-sm text-primary-700 mt-1">
                   Your account is secured through your OAuth provider (Google,
                   etc.). Security settings like password changes and two-factor
                   authentication are managed through your OAuth provider's
@@ -900,17 +927,19 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Account Actions */}
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <div className="card">
+          <h2 className="text-xl font-semibold text-gray-900 mb-6">
             Account Actions
           </h2>
 
           <div className="space-y-4">
-            <button className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors border border-red-200 dark:border-red-800">
+            <button
+              onClick={() => setShowDeleteConfirmation(true)}
+              className="w-full text-left px-4 py-3 text-danger-600 hover:bg-danger-50 rounded-lg transition-colors border border-danger-200"
+            >
               <div>
                 <div className="font-medium">Delete Account</div>
-                <div className="text-sm text-red-500 dark:text-red-400 mt-1">
+                <div className="text-sm text-danger-500 mt-1">
                   Permanently delete your account and all data
                 </div>
               </div>

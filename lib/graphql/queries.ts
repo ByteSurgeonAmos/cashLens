@@ -12,6 +12,31 @@ export const DASHBOARD_STATS_QUERY = gql`
   }
 `;
 
+export const DASHBOARD_STATS_COMPARISON_QUERY = gql`
+  query DashboardStatsComparison {
+    dashboardStatsComparison {
+      current {
+        totalIncome
+        totalExpenses
+        balance
+        transactionCount
+        categoriesCount
+      }
+      previous {
+        totalIncome
+        totalExpenses
+        balance
+        transactionCount
+        categoriesCount
+      }
+      incomeChange
+      expensesChange
+      balanceChange
+      transactionCountChange
+    }
+  }
+`;
+
 export const MONTHLY_DATA_QUERY = gql`
   query MonthlyData($year: Int!) {
     monthlyData(year: $year) {

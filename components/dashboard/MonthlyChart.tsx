@@ -12,6 +12,7 @@ import {
   Bar,
 } from "recharts";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { useCurrency } from "../../contexts/CurrencyContext";
 
 interface MonthlyChartProps {
   data?: Array<{
@@ -24,6 +25,8 @@ interface MonthlyChartProps {
 }
 
 export function MonthlyChart({ data, loading, year }: MonthlyChartProps) {
+  const { formatCurrency } = useCurrency();
+
   if (loading) {
     return (
       <div className="card">
@@ -33,14 +36,6 @@ export function MonthlyChart({ data, loading, year }: MonthlyChartProps) {
       </div>
     );
   }
-
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-    }).format(value);
-  };
 
   return (
     <div className="card">

@@ -1,12 +1,19 @@
 "use client";
 
+import { memo } from "react";
 import { useQuery } from "@apollo/client";
 import { GET_TRANSACTIONS_QUERY } from "../../lib/graphql/queries";
 import { LoadingSpinner } from "../ui/LoadingSpinner";
+import { useCurrency } from "../../contexts/CurrencyContext";
 
-export function RecentTransactions() {
+export const RecentTransactions = memo(function RecentTransactions() {
+  const { formatCurrency } = useCurrency();
   const { data, loading, error } = useQuery(GET_TRANSACTIONS_QUERY, {
     variables: { limit: 5 },
+    fetchPolicy: "cache-first", // Use cached data when available
+    notifyOnNetworkStatusChange: false, // Reduce re-renders
+    errorPolicy: "ignore", // Don't trigger re-renders on errors
+    pollInterval: 0, // Disable polling to prevent auto-refresh
   });
 
   if (loading) {
@@ -34,13 +41,6 @@ export function RecentTransactions() {
       </div>
     );
   }
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("en-US", {
@@ -107,4 +107,4 @@ export function RecentTransactions() {
       </div>
     </div>
   );
-}
+});

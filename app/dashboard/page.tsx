@@ -2,10 +2,8 @@
 
 import { useSession } from "next-auth/react";
 import { useQuery } from "@apollo/client";
-import {
-  DASHBOARD_STATS_QUERY,
-  MONTHLY_DATA_QUERY,
-} from "../../lib/graphql/queries";
+import { useMemo } from "react";
+import { MONTHLY_DATA_QUERY } from "../../lib/graphql/queries";
 import { DashboardHeader } from "../../components/dashboard/DashboardHeader";
 import { StatsCards } from "../../components/dashboard/StatsCards";
 import { MonthlyChart } from "../../components/dashboard/MonthlyChart";
@@ -16,24 +14,29 @@ import { LoadingSpinner } from "../../components/ui/LoadingSpinner";
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
-  const currentYear = new Date().getFullYear();
 
-  const { data: statsData, loading: statsLoading } = useQuery(
-    DASHBOARD_STATS_QUERY,
-    {
-      skip: status !== "authenticated",
-    }
+  const currentYear = useMemo(() => new Date().getFullYear(), []);
+
+  const {
+    data: monthlyData,
+    loading: monthlyLoading,
+    error: monthlyError,
+  } = useQuery(MONTHLY_DATA_QUERY, {
+    variables: { year: currentYear },
+    skip: status !== "authenticated",
+    fetchPolicy: "cache-first",
+    notifyOnNetworkStatusChange: false,
+    errorPolicy: "ignore",
+    pollInterval: 0, // Disable automatic polling
+  });
+
+  const monthly = useMemo(() => monthlyData?.monthlyData, [monthlyData]);
+  const isLoading = useMemo(
+    () => monthlyLoading && !monthlyData,
+    [monthlyLoading, monthlyData]
   );
 
-  const { data: monthlyData, loading: monthlyLoading } = useQuery(
-    MONTHLY_DATA_QUERY,
-    {
-      variables: { year: currentYear },
-      skip: status !== "authenticated",
-    }
-  );
-
-  if (status === "loading" || statsLoading) {
+  if (isLoading) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-screen">
@@ -47,30 +50,30 @@ export default function DashboardPage() {
     return null;
   }
 
-  const stats = statsData?.dashboardStats;
-  const monthly = monthlyData?.monthlyData;
-
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="max-w-[2000px] mx-auto space-y-6 xl:space-y-8 2xl:space-y-10">
         <DashboardHeader user={session?.user} />
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-3 space-y-6">
-            <StatsCards stats={stats} loading={statsLoading} />
+        <div className="w-full">
+          <StatsCards />
+        </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              <MonthlyChart
-                data={monthly}
-                loading={monthlyLoading}
-                year={currentYear}
-              />
-              <QuickActions />
-            </div>
+        <div className="w-full">
+          <MonthlyChart
+            data={monthly}
+            loading={monthlyLoading}
+            year={currentYear}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 xl:gap-8">
+          <div className="w-full">
+            <RecentTransactions />
           </div>
 
-          <div className="lg:col-span-1">
-            <RecentTransactions />
+          <div className="w-full">
+            <QuickActions />
           </div>
         </div>
       </div>

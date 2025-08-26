@@ -22,6 +22,7 @@ export async function GET(request: NextRequest) {
         image: true,
         twoFactorEnabled: true,
         hashedPassword: true,
+        currency: true,
       },
     });
 
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest) {
       image: user.image,
       twoFactorEnabled: user.twoFactorEnabled || false,
       hashedPassword: !!user.hashedPassword,
+      currency: user.currency || "USD",
     });
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -55,7 +57,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, image } = body;
+    const { name, image, currency } = body;
 
     if (name && (typeof name !== "string" || name.trim().length === 0)) {
       return NextResponse.json(
@@ -64,9 +66,17 @@ export async function PUT(request: NextRequest) {
       );
     }
 
+    if (currency && typeof currency !== "string") {
+      return NextResponse.json(
+        { success: false, message: "Currency must be a valid string" },
+        { status: 400 }
+      );
+    }
+
     const updateData: any = {};
     if (name !== undefined) updateData.name = name.trim();
     if (image !== undefined) updateData.image = image;
+    if (currency !== undefined) updateData.currency = currency;
 
     const updatedUser = await prisma.user.update({
       where: { email: session.user.email },
@@ -78,6 +88,7 @@ export async function PUT(request: NextRequest) {
         image: true,
         twoFactorEnabled: true,
         hashedPassword: true,
+        currency: true,
       },
     });
 
@@ -91,6 +102,7 @@ export async function PUT(request: NextRequest) {
         image: updatedUser.image,
         twoFactorEnabled: updatedUser.twoFactorEnabled || false,
         hashedPassword: !!updatedUser.hashedPassword,
+        currency: updatedUser.currency || "USD",
       },
     });
   } catch (error) {

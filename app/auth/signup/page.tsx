@@ -51,37 +51,29 @@ export default function SignUpPage() {
     confirmPassword: false,
   });
 
-  // Password strength calculation with more detailed scoring
   const calculatePasswordStrength = useCallback((password: string): number => {
     let strength = 0;
 
-    // Length scoring
     if (password.length >= 8) strength += 1;
     if (password.length >= 12) strength += 1;
     if (password.length >= 16) strength += 1;
-
-    // Character variety scoring
     if (/[a-z]/.test(password)) strength += 1;
     if (/[A-Z]/.test(password)) strength += 1;
     if (/[0-9]/.test(password)) strength += 1;
     if (/[@$!%*?&]/.test(password)) strength += 1;
 
-    // Bonus for multiple special characters
     const specialChars = password.match(/[@$!%*?&]/g);
     if (specialChars && specialChars.length > 1) strength += 1;
 
-    // Penalty for common patterns
     if (/123|abc|password|qwerty/i.test(password)) strength -= 1;
 
     return Math.max(0, Math.min(strength, 5));
   }, []);
 
-  // Real-time validation with debouncing for better performance
   useEffect(() => {
     const validateForm = () => {
       const newValidation = { ...validation };
 
-      // Name validation
       if (formData.name.length > 0) {
         const trimmedName = formData.name.trim();
         newValidation.name.isValid =
@@ -96,7 +88,6 @@ export default function SignUpPage() {
         newValidation.name.message = "";
       }
 
-      // Email validation with more comprehensive checks
       if (formData.email.length > 0) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const isValidFormat = emailRegex.test(formData.email);
@@ -115,7 +106,6 @@ export default function SignUpPage() {
         newValidation.email.message = "";
       }
 
-      // Enhanced password validation
       if (formData.password.length > 0) {
         const strength = calculatePasswordStrength(formData.password);
         newValidation.password.strength = strength;
@@ -126,7 +116,6 @@ export default function SignUpPage() {
         const hasNumber = /[0-9]/.test(formData.password);
         const hasSpecial = /[@$!%*?&]/.test(formData.password);
 
-        // Require minimum strength of 3 for better security
         newValidation.password.isValid =
           hasMinLength &&
           hasUppercase &&
@@ -153,7 +142,6 @@ export default function SignUpPage() {
         newValidation.password.strength = 0;
       }
 
-      // Confirm password validation
       if (formData.confirmPassword.length > 0) {
         newValidation.confirmPassword.isValid =
           formData.password === formData.confirmPassword &&
@@ -171,7 +159,6 @@ export default function SignUpPage() {
 
       setValidation(newValidation);
 
-      // Check if form is valid
       const allValid = Object.values(newValidation).every((field) =>
         "isValid" in field ? field.isValid : true
       );
@@ -187,7 +174,6 @@ export default function SignUpPage() {
 
   const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    // Clear error when user starts typing
     if (error) setError("");
   };
 
@@ -315,7 +301,6 @@ export default function SignUpPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Name Field */}
             <div className="space-y-2">
               <label htmlFor="name" className="label">
                 Full Name *
@@ -407,7 +392,6 @@ export default function SignUpPage() {
               )}
             </div>
 
-            {/* Password Field */}
             <div className="space-y-2">
               <label htmlFor="password" className="label">
                 Password *
@@ -480,7 +464,6 @@ export default function SignUpPage() {
                 </button>
               </div>
 
-              {/* Password Strength Indicator */}
               {formData.password && (
                 <div
                   id="password-strength"
@@ -527,7 +510,6 @@ export default function SignUpPage() {
                 </div>
               )}
 
-              {/* Password Requirements */}
               {touched.password && validation.password.message && (
                 <p
                   className={`text-xs transition-all duration-200 ${
@@ -541,7 +523,6 @@ export default function SignUpPage() {
                 </p>
               )}
 
-              {/* Requirements Checklist */}
               {formData.password && (
                 <div
                   id="password-requirements"
@@ -600,7 +581,6 @@ export default function SignUpPage() {
               )}
             </div>
 
-            {/* Confirm Password Field */}
             <div className="space-y-2">
               <label htmlFor="confirmPassword" className="label">
                 Confirm Password *

@@ -66,11 +66,44 @@ export function ApolloProvider({ children }: ApolloProviderProps) {
             fields: {
               transactions: {
                 merge: false,
+                read(existing, { args, readField }) {
+                  return existing;
+                },
+              },
+              dashboardStats: {
+                merge: false,
+                read(existing) {
+                  return existing;
+                },
+              },
+              dashboardStatsComparison: {
+                merge: false,
+                read(existing) {
+                  return existing;
+                },
+              },
+              monthlyData: {
+                merge: false,
+                read(existing, { args }) {
+                  return existing;
+                },
               },
             },
           },
         },
       }),
+      defaultOptions: {
+        watchQuery: {
+          fetchPolicy: "cache-first",
+          errorPolicy: "ignore",
+          notifyOnNetworkStatusChange: false,
+        },
+        query: {
+          fetchPolicy: "cache-first",
+          errorPolicy: "all",
+          notifyOnNetworkStatusChange: false,
+        },
+      },
     });
   }, [session]);
 

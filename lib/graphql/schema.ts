@@ -61,6 +61,15 @@ export const typeDefs = `
     categoriesCount: Int!
   }
 
+  type DashboardStatsComparison {
+    current: DashboardStats!
+    previous: DashboardStats!
+    incomeChange: Decimal!
+    expensesChange: Decimal!
+    balanceChange: Decimal!
+    transactionCountChange: Int!
+  }
+
   type MonthlyData {
     month: String!
     income: Decimal!
@@ -137,6 +146,7 @@ export const typeDefs = `
     budgets: [Budget!]!
     budget(id: String!): Budget
     dashboardStats: DashboardStats!
+    dashboardStatsComparison: DashboardStatsComparison!
     monthlyData(year: Int!): [MonthlyData!]!
   }
 
