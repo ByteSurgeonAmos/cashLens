@@ -64,7 +64,7 @@ export function Layout({ children }: LayoutProps) {
       >
         <div className="flex items-center justify-center h-14 lg:h-16 border-b border-gray-200 px-4 flex-shrink-0">
           <div className="flex items-center space-x-2">
-            <div className="w-7 h-7 lg:w-8 lg:h-8 bg-gradient-to-r from-primary-500 to-primary-600 rounded-lg flex items-center justify-center">
+            <div className="w-7 h-7 lg:w-8 lg:h-8  rounded-lg flex items-center justify-center">
               <Image
                 src="/logo.png"
                 alt="CashLens Logo"

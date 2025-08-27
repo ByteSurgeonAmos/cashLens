@@ -202,6 +202,27 @@ export const DELETE_BUDGET_MUTATION = gql`
   }
 `;
 
+export const UPDATE_BUDGET_MUTATION = gql`
+  mutation UpdateBudget($input: UpdateBudgetInput!) {
+    updateBudget(input: $input) {
+      id
+      amount
+      spent
+      period
+      startDate
+      endDate
+      createdAt
+      category {
+        id
+        name
+        icon
+        color
+        type
+      }
+    }
+  }
+`;
+
 // Subscriptions
 export const TRANSACTION_ADDED_SUBSCRIPTION = gql`
   subscription TransactionAdded($userId: String!) {

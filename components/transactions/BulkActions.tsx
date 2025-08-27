@@ -7,7 +7,6 @@ import {
   CheckIcon,
   XMarkIcon,
   TrashIcon,
-  TagIcon,
   ArrowDownTrayIcon,
 } from "@heroicons/react/24/outline";
 

@@ -15,11 +15,11 @@ export function StatsCards({ loading: externalLoading }: StatsCardsProps) {
 
   const { data, loading, error } = useQuery(DASHBOARD_STATS_COMPARISON_QUERY, {
     skip: status !== "authenticated",
-    fetchPolicy: "cache-first", // Use cached data when available
-    nextFetchPolicy: "cache-only", // After first fetch, only use cache
+    fetchPolicy: "cache-first",
+    nextFetchPolicy: "cache-only",
     notifyOnNetworkStatusChange: false,
     errorPolicy: "ignore",
-    pollInterval: 0, // Disable polling to prevent auto-refresh
+    pollInterval: 0,
   });
 
   const formatPercentageChange = (change: number) => {
