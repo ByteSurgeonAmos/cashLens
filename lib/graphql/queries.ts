@@ -233,3 +233,84 @@ export const TRANSACTION_DELETED_SUBSCRIPTION = gql`
     transactionDeleted(userId: $userId)
   }
 `;
+
+// Enhanced transaction queries with filtering
+export const GET_TRANSACTIONS_WITH_FILTERS_QUERY = gql`
+  query GetTransactionsWithFilters(
+    $limit: Int
+    $offset: Int
+    $type: TransactionType
+    $categoryId: String
+    $startDate: DateTime
+    $endDate: DateTime
+    $minAmount: Decimal
+    $maxAmount: Decimal
+    $search: String
+  ) {
+    transactions(
+      limit: $limit
+      offset: $offset
+      type: $type
+      categoryId: $categoryId
+      startDate: $startDate
+      endDate: $endDate
+      minAmount: $minAmount
+      maxAmount: $maxAmount
+      search: $search
+    ) {
+      id
+      amount
+      description
+      type
+      date
+      createdAt
+      category {
+        id
+        name
+        icon
+        color
+      }
+    }
+  }
+`;
+
+export const GET_TRANSACTION_STATS_QUERY = gql`
+  query GetTransactionStats($startDate: DateTime, $endDate: DateTime) {
+    transactionStats(startDate: $startDate, endDate: $endDate) {
+      totalIncome
+      totalExpenses
+      netBalance
+      transactionCount
+      averageTransaction
+      topCategories {
+        category {
+          id
+          name
+          icon
+          color
+        }
+        totalAmount
+        transactionCount
+      }
+    }
+  }
+`;
+
+export const GET_RECENT_TRANSACTIONS_QUERY = gql`
+  query GetRecentTransactions($limit: Int = 10) {
+    transactions(limit: $limit, offset: 0) {
+      id
+      amount
+      description
+      type
+      date
+      createdAt
+      category {
+        id
+        name
+        icon
+        color
+      }
+    }
+  }
+`;

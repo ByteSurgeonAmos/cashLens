@@ -9,8 +9,6 @@ import {
 } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
 import { getMainDefinition } from "@apollo/client/utilities";
-import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createClient } from "graphql-ws";
 import { useSession } from "next-auth/react";
 import { ReactNode, useMemo } from "react";
 
@@ -35,7 +33,6 @@ export function ApolloProvider({ children }: ApolloProviderProps) {
       };
     });
 
-    // Disabled WebSocket subscriptions for static dashboard
     const wsLink = null;
 
     const splitLink = wsLink
@@ -99,7 +96,7 @@ export function ApolloProvider({ children }: ApolloProviderProps) {
         },
       },
     });
-  }, [session]);
+  }, []);
 
   return (
     <ApolloClientProvider client={client}>{children}</ApolloClientProvider>
