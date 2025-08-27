@@ -11,6 +11,7 @@ export const RecentTransactions = memo(function RecentTransactions() {
   const { data, loading, error } = useQuery(GET_TRANSACTIONS_QUERY, {
     variables: { limit: 5 },
     fetchPolicy: "cache-first", // Use cached data when available
+    nextFetchPolicy: "cache-only", // After first fetch, only use cache
     notifyOnNetworkStatusChange: false, // Reduce re-renders
     errorPolicy: "ignore", // Don't trigger re-renders on errors
     pollInterval: 0, // Disable polling to prevent auto-refresh

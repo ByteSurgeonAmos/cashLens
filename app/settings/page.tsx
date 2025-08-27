@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { Layout } from "../../components/layout/Layout";
 import { ConfirmationModal } from "../../components/ui/ConfirmationModal";
+import { ImageUpload } from "../../components/ui/ImageUpload";
 import { generateRandomAvatar } from "../../lib/auth/auth-utils";
 import { useCurrency } from "../../contexts/CurrencyContext";
 
@@ -22,8 +23,8 @@ export default function SettingsPage() {
   const router = useRouter();
   const { currency, setCurrency, currencies } = useCurrency();
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const [globalError, setGlobalError] = useState("");
+  const [globalSuccess, setGlobalSuccess] = useState("");
   const [profile, setProfile] = useState<UserProfile>({
     name: "",
     email: "",
@@ -40,6 +41,14 @@ export default function SettingsPage() {
     hashedPassword: false,
   });
 
+  const [profileError, setProfileError] = useState("");
+  const [profileSuccess, setProfileSuccess] = useState("");
+  const [securityError, setSecurityError] = useState("");
+  const [securitySuccess, setSecuritySuccess] = useState("");
+  const [currencyError, setCurrencyError] = useState("");
+  const [currencySuccess, setCurrencySuccess] = useState("");
+  const [themeSuccess, setThemeSuccess] = useState("");
+
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
@@ -49,6 +58,8 @@ export default function SettingsPage() {
   const [passwordErrors, setPasswordErrors] = useState<string[]>([]);
 
   const [show2FASetup, setShow2FASetup] = useState(false);
+  const [show2FADisable, setShow2FADisable] = useState(false);
+  const [disablePassword, setDisablePassword] = useState("");
   const [twoFAData, setTwoFAData] = useState({
     secret: "",
     qrCode: "",
@@ -60,6 +71,9 @@ export default function SettingsPage() {
   const [theme, setTheme] = useState("light");
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+
+  const [imageUploadLoading, setImageUploadLoading] = useState(false);
+  const [pendingImageFile, setPendingImageFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -125,12 +139,64 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSaveProfile = async () => {
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
+  const handleImageSelect = async (file: File) => {
+    setImageUploadLoading(true);
+    setProfileError("");
 
     try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch("/api/user/upload-image", {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        setTempProfile({ ...tempProfile, image: result.imageUrl });
+        setPendingImageFile(file);
+      } else {
+        setProfileError(result.error || "Failed to upload image");
+      }
+    } catch (error) {
+      setProfileError("An error occurred while uploading the image");
+    } finally {
+      setImageUploadLoading(false);
+    }
+  };
+
+  const handleImageRemove = () => {
+    setTempProfile({ ...tempProfile, image: "" });
+    setPendingImageFile(null);
+  };
+
+  const handleSaveProfile = async () => {
+    setIsLoading(true);
+    setProfileError("");
+    setProfileSuccess("");
+
+    try {
+      if (
+        profile.image &&
+        profile.image.startsWith("/uploads/profiles/") &&
+        profile.image !== tempProfile.image
+      ) {
+        try {
+          await fetch(
+            `/api/user/upload-image?imageUrl=${encodeURIComponent(
+              profile.image
+            )}`,
+            {
+              method: "DELETE",
+            }
+          );
+        } catch (deleteError) {
+          console.warn("Could not delete previous image:", deleteError);
+        }
+      }
+
       const response = await fetch("/api/user/profile", {
         method: "PUT",
         headers: {
@@ -147,26 +213,48 @@ export default function SettingsPage() {
       if (result.success) {
         setProfile(tempProfile);
         setIsEditingProfile(false);
-        setSuccess("Profile updated successfully!");
+        setProfileSuccess("Profile updated successfully!");
+        setPendingImageFile(null);
         await update({
           name: tempProfile.name,
           image: tempProfile.image,
         });
       } else {
-        setError(result.message || "Failed to update profile");
+        setProfileError(result.message || "Failed to update profile");
       }
     } catch (error) {
-      setError("An error occurred while updating profile");
+      setProfileError("An error occurred while updating profile");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = async () => {
+    if (
+      pendingImageFile &&
+      tempProfile.image &&
+      tempProfile.image.startsWith("/uploads/profiles/") &&
+      tempProfile.image !== profile.image
+    ) {
+      try {
+        await fetch(
+          `/api/user/upload-image?imageUrl=${encodeURIComponent(
+            tempProfile.image
+          )}`,
+          {
+            method: "DELETE",
+          }
+        );
+      } catch (deleteError) {
+        console.warn("Could not delete pending image:", deleteError);
+      }
+    }
+
     setTempProfile(profile);
     setIsEditingProfile(false);
-    setError("");
-    setSuccess("");
+    setProfileError("");
+    setProfileSuccess("");
+    setPendingImageFile(null);
   };
 
   const validatePassword = (password: string): string[] => {
@@ -184,8 +272,8 @@ export default function SettingsPage() {
   };
 
   const handlePasswordChange = async () => {
-    setError("");
-    setSuccess("");
+    setSecurityError("");
+    setSecuritySuccess("");
     setPasswordErrors([]);
 
     const newPasswordErrors = validatePassword(passwordData.newPassword);
@@ -195,12 +283,12 @@ export default function SettingsPage() {
     }
 
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      setError("New passwords do not match");
+      setSecurityError("New passwords do not match");
       return;
     }
 
     if (!passwordData.currentPassword) {
-      setError("Current password is required");
+      setSecurityError("Current password is required");
       return;
     }
 
@@ -221,7 +309,7 @@ export default function SettingsPage() {
       const result = await response.json();
 
       if (result.success) {
-        setSuccess("Password changed successfully!");
+        setSecuritySuccess("Password changed successfully!");
         setPasswordData({
           currentPassword: "",
           newPassword: "",
@@ -229,18 +317,18 @@ export default function SettingsPage() {
         });
         setShowPasswordChange(false);
       } else {
-        setError(result.message || "Failed to change password");
+        setSecurityError(result.message || "Failed to change password");
       }
     } catch (error) {
-      setError("An error occurred while changing password");
+      setSecurityError("An error occurred while changing password");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handle2FASetup = async () => {
-    setError("");
-    setSuccess("");
+    setSecurityError("");
+    setSecuritySuccess("");
     setIsLoading(true);
 
     try {
@@ -261,11 +349,15 @@ export default function SettingsPage() {
           qrCode: result.qrCode,
         });
         setShow2FASetup(true);
+        console.log(
+          "2FA setup successful, QR code length:",
+          result.qrCode?.length
+        );
       } else {
-        setError(result.message || "Failed to setup 2FA");
+        setSecurityError(result.message || "Failed to setup 2FA");
       }
     } catch (error) {
-      setError("An error occurred while setting up 2FA");
+      setSecurityError("An error occurred while setting up 2FA");
     } finally {
       setIsLoading(false);
     }
@@ -273,10 +365,11 @@ export default function SettingsPage() {
 
   const handle2FAVerification = async () => {
     if (!twoFAData.verificationCode) {
-      setError("Please enter the verification code");
+      setSecurityError("Please enter the verification code");
       return;
     }
 
+    setSecurityError("");
     setIsLoading(true);
 
     try {
@@ -300,21 +393,26 @@ export default function SettingsPage() {
           showBackupCodes: true,
         });
         setProfile({ ...profile, twoFactorEnabled: true });
-        setSuccess("2FA enabled successfully! Please save your backup codes.");
+        setSecuritySuccess(
+          "2FA enabled successfully! Please save your backup codes."
+        );
       } else {
-        setError(result.message || "Failed to verify 2FA");
+        setSecurityError(result.message || "Failed to verify 2FA");
       }
     } catch (error) {
-      setError("An error occurred while verifying 2FA");
+      setSecurityError("An error occurred while verifying 2FA");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handle2FADisable = async () => {
-    const password = prompt("Enter your password to disable 2FA:");
-    if (!password) return;
+    if (!disablePassword) {
+      setSecurityError("Password is required to disable 2FA");
+      return;
+    }
 
+    setSecurityError("");
     setIsLoading(true);
 
     try {
@@ -325,7 +423,7 @@ export default function SettingsPage() {
         },
         body: JSON.stringify({
           action: "disable",
-          password: password,
+          password: disablePassword,
         }),
       });
 
@@ -333,12 +431,14 @@ export default function SettingsPage() {
 
       if (result.success) {
         setProfile({ ...profile, twoFactorEnabled: false });
-        setSuccess("2FA disabled successfully!");
+        setSecuritySuccess("2FA disabled successfully!");
+        setShow2FADisable(false);
+        setDisablePassword("");
       } else {
-        setError(result.message || "Failed to disable 2FA");
+        setSecurityError(result.message || "Failed to disable 2FA");
       }
     } catch (error) {
-      setError("An error occurred while disabling 2FA");
+      setSecurityError("An error occurred while disabling 2FA");
     } finally {
       setIsLoading(false);
     }
@@ -349,9 +449,11 @@ export default function SettingsPage() {
     if (newCurrency) {
       try {
         await setCurrency(newCurrency);
-        setSuccess(`Currency changed to ${newCurrency.name}`);
+        setCurrencySuccess(`Currency changed to ${newCurrency.name}`);
+        setCurrencyError("");
       } catch (error) {
-        setError("Failed to update currency");
+        setCurrencyError("Failed to update currency");
+        setCurrencySuccess("");
       }
     }
   };
@@ -359,12 +461,12 @@ export default function SettingsPage() {
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     localStorage.setItem("cashLens_theme", newTheme);
-    setSuccess(`Theme changed to ${newTheme}`);
+    setThemeSuccess(`Theme changed to ${newTheme}`);
   };
 
   const handleDeleteAccount = async () => {
     setIsLoading(true);
-    setError("");
+    setGlobalError("");
 
     try {
       const response = await fetch("/api/user/delete-account", {
@@ -377,19 +479,67 @@ export default function SettingsPage() {
       const result = await response.json();
 
       if (result.success) {
-        // Close modal and redirect
         setShowDeleteConfirmation(false);
         await router.push("/");
         window.location.reload();
       } else {
-        setError(result.message || "Failed to delete account");
+        setGlobalError(result.message || "Failed to delete account");
       }
     } catch (error) {
-      setError("An error occurred while deleting account");
+      setGlobalError("An error occurred while deleting account");
     } finally {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (profileSuccess) {
+      const timer = setTimeout(() => setProfileSuccess(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [profileSuccess]);
+
+  useEffect(() => {
+    if (profileError) {
+      const timer = setTimeout(() => setProfileError(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [profileError]);
+
+  useEffect(() => {
+    if (securitySuccess) {
+      const timer = setTimeout(() => setSecuritySuccess(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [securitySuccess]);
+
+  useEffect(() => {
+    if (securityError) {
+      const timer = setTimeout(() => setSecurityError(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [securityError]);
+
+  useEffect(() => {
+    if (currencySuccess) {
+      const timer = setTimeout(() => setCurrencySuccess(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [currencySuccess]);
+
+  useEffect(() => {
+    if (currencyError) {
+      const timer = setTimeout(() => setCurrencyError(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [currencyError]);
+
+  useEffect(() => {
+    if (themeSuccess) {
+      const timer = setTimeout(() => setThemeSuccess(""), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [themeSuccess]);
 
   if (status === "loading") {
     return (
@@ -411,14 +561,14 @@ export default function SettingsPage() {
           </p>
         </div>
 
-        {success && (
+        {globalSuccess && (
           <div className="bg-success-50 border border-success-200 rounded-lg p-4">
-            <p className="text-success-600 text-sm">{success}</p>
+            <p className="text-success-600 text-sm">{globalSuccess}</p>
           </div>
         )}
-        {error && (
+        {globalError && (
           <div className="bg-danger-50 border border-danger-200 rounded-lg p-4">
-            <p className="text-danger-600 text-sm">{error}</p>
+            <p className="text-danger-600 text-sm">{globalError}</p>
           </div>
         )}
 
@@ -427,41 +577,73 @@ export default function SettingsPage() {
             Profile Information
           </h2>
 
-          <div className="space-y-6">
-            <div className="flex items-center space-x-6">
-              <div className="relative">
-                <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
-                  {(isEditingProfile ? tempProfile.image : profile.image) ? (
-                    <Image
-                      src={isEditingProfile ? tempProfile.image : profile.image}
-                      alt="Profile"
-                      width={80}
-                      height={80}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
-                      👤
-                    </div>
-                  )}
-                </div>
-              </div>
+          {profileSuccess && (
+            <div className="bg-success-50 border border-success-200 rounded-lg p-4 mb-6">
+              <p className="text-success-600 text-sm">{profileSuccess}</p>
+            </div>
+          )}
+          {profileError && (
+            <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-6">
+              <p className="text-danger-600 text-sm">{profileError}</p>
+            </div>
+          )}
 
-              {isEditingProfile && (
-                <div className="flex flex-col space-y-2">
+          <div className="space-y-6">
+            {isEditingProfile ? (
+              <div>
+                <label className="label">Profile Picture</label>
+                <ImageUpload
+                  currentImage={tempProfile.image}
+                  onImageSelect={handleImageSelect}
+                  onImageRemove={handleImageRemove}
+                  isLoading={imageUploadLoading}
+                  maxSize={5}
+                  className="max-w-md"
+                />
+                <div className="mt-4">
                   <button
                     type="button"
                     onClick={generateNewAvatar}
-                    className="btn-primary text-sm"
+                    className="btn-secondary text-sm"
                   >
-                    Generate New Avatar
+                    Generate Random Avatar Instead
                   </button>
-                  <p className="text-xs text-gray-500">
-                    Click to get a new random avatar
+                  <p className="text-xs text-gray-500 mt-1">
+                    Click to use a generated avatar instead of uploading an
+                    image
                   </p>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-6">
+                <div className="relative">
+                  <div className="w-20 h-20 rounded-full overflow-hidden bg-gray-100 border-2 border-gray-200">
+                    {profile.image ? (
+                      <Image
+                        src={profile.image}
+                        alt="Profile"
+                        width={80}
+                        height={80}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400 text-2xl">
+                        👤
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <h3 className="text-sm font-medium text-gray-900">
+                    Profile Picture
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Click "Edit Profile" to upload a custom image or generate a
+                    new avatar
+                  </p>
+                </div>
+              </div>
+            )}
 
             <div>
               <label className="label" htmlFor="name">
@@ -524,6 +706,19 @@ export default function SettingsPage() {
             Preferences
           </h2>
 
+          {(currencySuccess || themeSuccess) && (
+            <div className="bg-success-50 border border-success-200 rounded-lg p-4 mb-6">
+              <p className="text-success-600 text-sm">
+                {currencySuccess || themeSuccess}
+              </p>
+            </div>
+          )}
+          {currencyError && (
+            <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-6">
+              <p className="text-danger-600 text-sm">{currencyError}</p>
+            </div>
+          )}
+
           <div className="space-y-6">
             <div>
               <label className="label">Default Currency</label>
@@ -574,6 +769,17 @@ export default function SettingsPage() {
               Security
             </h2>
 
+            {securitySuccess && (
+              <div className="bg-success-50 border border-success-200 rounded-lg p-4 mb-6">
+                <p className="text-success-600 text-sm">{securitySuccess}</p>
+              </div>
+            )}
+            {securityError && (
+              <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-6">
+                <p className="text-danger-600 text-sm">{securityError}</p>
+              </div>
+            )}
+
             <div className="space-y-6">
               <div className="flex items-center justify-between py-4 border-b border-gray-100">
                 <div>
@@ -597,7 +803,7 @@ export default function SettingsPage() {
                   <button
                     onClick={
                       profile.twoFactorEnabled
-                        ? handle2FADisable
+                        ? () => setShow2FADisable(true)
                         : handle2FASetup
                     }
                     className="text-primary-600 hover:text-primary-700 text-sm font-medium"
@@ -634,6 +840,12 @@ export default function SettingsPage() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">
                 Change Password
               </h3>
+
+              {securityError && (
+                <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-4">
+                  <p className="text-danger-600 text-sm">{securityError}</p>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div>
@@ -711,6 +923,7 @@ export default function SettingsPage() {
                       confirmPassword: "",
                     });
                     setPasswordErrors([]);
+                    setSecurityError("");
                   }}
                   className="btn-secondary"
                 >
@@ -723,56 +936,160 @@ export default function SettingsPage() {
 
         {show2FASetup && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="card w-full max-w-md">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Setup Two-Factor Authentication
-              </h3>
+            <div className="card w-full max-w-md max-h-[90vh] flex flex-col">
+              <div className="flex-shrink-0">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Setup Two-Factor Authentication
+                </h3>
 
-              {!twoFAData.showBackupCodes ? (
-                <div className="space-y-4">
-                  {twoFAData.qrCode && (
-                    <div className="text-center">
-                      <div className="inline-block p-4 bg-white rounded-lg">
-                        <img
-                          src={twoFAData.qrCode}
-                          alt="2FA QR Code"
-                          className="w-48 h-48 mx-auto"
-                        />
+                {securityError && (
+                  <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-4">
+                    <p className="text-danger-600 text-sm">{securityError}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex-1 overflow-y-auto">
+                {!twoFAData.showBackupCodes ? (
+                  <div className="space-y-4">
+                    {twoFAData.qrCode ? (
+                      <div className="text-center">
+                        <div className="inline-block p-4 bg-white rounded-lg border shadow-sm">
+                          <img
+                            src={twoFAData.qrCode}
+                            alt="2FA QR Code"
+                            className="w-48 h-48 mx-auto"
+                            onError={(e) => {
+                              console.error(
+                                "QR Code failed to load:",
+                                twoFAData.qrCode?.substring(0, 100)
+                              );
+                              e.currentTarget.style.display = "none";
+                            }}
+                            onLoad={() =>
+                              console.log("QR Code loaded successfully")
+                            }
+                          />
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2">
+                          Scan this QR code with your authenticator app
+                        </p>
                       </div>
-                      <p className="text-sm text-gray-600 mt-2">
-                        Scan this QR code with your authenticator app
+                    ) : (
+                      <div className="text-center text-red-600">
+                        <p>QR Code failed to generate</p>
+                      </div>
+                    )}
+
+                    {twoFAData.secret && (
+                      <div className="bg-gray-50 p-4 rounded-lg">
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          Can't scan? Enter this key manually:
+                        </p>
+                        <div className="bg-white p-3 rounded border">
+                          <code className="text-sm break-all font-mono">
+                            {twoFAData.secret}
+                          </code>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">
+                          Choose "Enter a setup key" in your authenticator app
+                          and paste this code
+                        </p>
+                      </div>
+                    )}
+
+                    <div>
+                      <label className="label">Verification Code</label>
+                      <input
+                        type="text"
+                        value={twoFAData.verificationCode}
+                        onChange={(e) =>
+                          setTwoFAData({
+                            ...twoFAData,
+                            verificationCode: e.target.value,
+                          })
+                        }
+                        className="input-field w-full text-center text-lg tracking-wider"
+                        placeholder="000000"
+                        maxLength={6}
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter the 6-digit code from your authenticator app
                       </p>
                     </div>
-                  )}
 
-                  <div>
-                    <label className="label">Verification Code</label>
-                    <input
-                      type="text"
-                      value={twoFAData.verificationCode}
-                      onChange={(e) =>
-                        setTwoFAData({
-                          ...twoFAData,
-                          verificationCode: e.target.value,
-                        })
-                      }
-                      className="input-field w-full text-center text-lg tracking-wider"
-                      placeholder="000000"
-                      maxLength={6}
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Enter the 6-digit code from your authenticator app
-                    </p>
+                    <div className="flex space-x-3 mt-6">
+                      <button
+                        onClick={handle2FAVerification}
+                        disabled={isLoading}
+                        className="btn-primary flex-1 disabled:opacity-50"
+                      >
+                        {isLoading ? "Verifying..." : "Verify & Enable"}
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShow2FASetup(false);
+                          setTwoFAData({
+                            secret: "",
+                            qrCode: "",
+                            verificationCode: "",
+                            backupCodes: [],
+                            showBackupCodes: false,
+                          });
+                          setSecurityError("");
+                        }}
+                        className="btn-secondary"
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="text-center">
+                      <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                        <svg
+                          className="w-6 h-6 text-success-600"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      </div>
+                      <h4 className="text-lg font-medium text-gray-900">
+                        2FA Enabled Successfully!
+                      </h4>
+                      <p className="text-sm text-gray-600 mt-1">
+                        Please save these backup codes in a secure location
+                      </p>
+                    </div>
 
-                  <div className="flex space-x-3 mt-6">
-                    <button
-                      onClick={handle2FAVerification}
-                      disabled={isLoading}
-                      className="btn-primary flex-1 disabled:opacity-50"
-                    >
-                      {isLoading ? "Verifying..." : "Verify & Enable"}
-                    </button>
+                    <div className="bg-gray-50 rounded-lg p-4">
+                      <h5 className="font-medium text-gray-900 mb-2">
+                        Backup Codes
+                      </h5>
+                      <div className="grid grid-cols-2 gap-2 text-sm font-mono">
+                        {twoFAData.backupCodes.map((code, index) => (
+                          <div
+                            key={index}
+                            className="bg-white p-2 rounded text-center"
+                          >
+                            {code}
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">
+                        Each backup code can only be used once. Store them
+                        safely!
+                      </p>
+                    </div>
+
                     <button
                       onClick={() => {
                         setShow2FASetup(false);
@@ -783,93 +1100,115 @@ export default function SettingsPage() {
                           backupCodes: [],
                           showBackupCodes: false,
                         });
+                        setSecurityError(""); // Clear errors
                       }}
-                      className="btn-secondary"
+                      className="btn-primary w-full"
                     >
-                      Cancel
+                      Done
                     </button>
                   </div>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-success-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                      <svg
-                        className="w-6 h-6 text-success-600"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    </div>
-                    <h4 className="text-lg font-medium text-gray-900">
-                      2FA Enabled Successfully!
-                    </h4>
-                    <p className="text-sm text-gray-600 mt-1">
-                      Please save these backup codes in a secure location
-                    </p>
-                  </div>
-
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <h5 className="font-medium text-gray-900 mb-2">
-                      Backup Codes
-                    </h5>
-                    <div className="grid grid-cols-2 gap-2 text-sm font-mono">
-                      {twoFAData.backupCodes.map((code, index) => (
-                        <div
-                          key={index}
-                          className="bg-white p-2 rounded text-center"
-                        >
-                          {code}
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Each backup code can only be used once. Store them safely!
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={() => {
-                      setShow2FASetup(false);
-                      setTwoFAData({
-                        secret: "",
-                        qrCode: "",
-                        verificationCode: "",
-                        backupCodes: [],
-                        showBackupCodes: false,
-                      });
-                    }}
-                    className="btn-primary w-full"
-                  >
-                    Done
-                  </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
 
-        {/* Delete Account Confirmation Modal */}
+        {show2FADisable && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="card w-full max-w-md">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Disable Two-Factor Authentication
+              </h3>
+
+              {securityError && (
+                <div className="bg-danger-50 border border-danger-200 rounded-lg p-4 mb-4">
+                  <p className="text-danger-600 text-sm">{securityError}</p>
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg
+                        className="h-5 w-5 text-yellow-400"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-yellow-800">
+                        Warning
+                      </h3>
+                      <p className="text-sm text-yellow-700 mt-1">
+                        Disabling 2FA will make your account less secure. You
+                        can re-enable it at any time.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="label">Password</label>
+                  <input
+                    type="password"
+                    value={disablePassword}
+                    onChange={(e) => setDisablePassword(e.target.value)}
+                    className="input-field w-full"
+                    placeholder="Enter your password to confirm"
+                    onKeyPress={(e) => {
+                      if (e.key === "Enter") {
+                        handle2FADisable();
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Please enter your account password to confirm this action
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <button
+                  onClick={handle2FADisable}
+                  disabled={isLoading || !disablePassword}
+                  className="btn-danger flex-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? "Disabling..." : "Disable 2FA"}
+                </button>
+                <button
+                  onClick={() => {
+                    setShow2FADisable(false);
+                    setDisablePassword("");
+                    setSecurityError("");
+                  }}
+                  className="btn-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <ConfirmationModal
           isOpen={showDeleteConfirmation}
           onClose={() => {
             setShowDeleteConfirmation(false);
             setDeleteConfirmationText("");
-            setError("");
+            setGlobalError("");
           }}
           onConfirm={() => {
-            // Only proceed if validation passes
             if (deleteConfirmationText === "DELETE") {
               handleDeleteAccount();
             } else {
-              setError("Please type DELETE to confirm account deletion");
+              setGlobalError("Please type DELETE to confirm account deletion");
             }
           }}
           title="Delete Your Account"
@@ -892,9 +1231,9 @@ export default function SettingsPage() {
                   placeholder="DELETE"
                 />
               </div>
-              {error && (
+              {globalError && (
                 <div className="text-sm text-danger-600 bg-danger-50 p-3 rounded-lg">
-                  {error}
+                  {globalError}
                 </div>
               )}
             </div>
@@ -904,28 +1243,6 @@ export default function SettingsPage() {
           confirmButtonStyle="danger"
           isLoading={isLoading}
         />
-
-        {!profile.hashedPassword && (
-          <div className="bg-primary-50 rounded-lg border border-primary-200 p-6">
-            <h2 className="text-xl font-semibold text-primary-900 mb-4">
-              Account Security
-            </h2>
-            <div className="flex items-start space-x-3">
-              <div className="w-6 h-6 text-primary-600 mt-0.5">🔒</div>
-              <div>
-                <h3 className="text-sm font-medium text-primary-900">
-                  OAuth Account
-                </h3>
-                <p className="text-sm text-primary-700 mt-1">
-                  Your account is secured through your OAuth provider (Google,
-                  etc.). Security settings like password changes and two-factor
-                  authentication are managed through your OAuth provider's
-                  security settings.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         <div className="card">
           <h2 className="text-xl font-semibold text-gray-900 mb-6">

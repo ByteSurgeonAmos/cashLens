@@ -35,14 +35,8 @@ export function ApolloProvider({ children }: ApolloProviderProps) {
       };
     });
 
-    const wsLink =
-      typeof window !== "undefined"
-        ? new GraphQLWsLink(
-            createClient({
-              url: "ws://localhost:3000/api/graphql/subscriptions",
-            })
-          )
-        : null;
+    // Disabled WebSocket subscriptions for static dashboard
+    const wsLink = null;
 
     const splitLink = wsLink
       ? split(

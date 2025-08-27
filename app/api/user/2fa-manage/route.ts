@@ -8,6 +8,8 @@ import {
   verifyTOTP,
   generateBackupCodes,
   disableTwoFactor,
+  encryptSecret,
+  decryptSecret,
 } from "../../../../lib/auth/two-factor";
 
 const prisma = new PrismaClient();
@@ -68,9 +70,11 @@ export async function POST(request: NextRequest) {
       const accountName = user.email;
       const qrCode = await generateQRCodeDataURL(accountName, secret);
 
+      // Store encrypted secret temporarily for setup
+      const encryptedSecret = encryptSecret(secret);
       await prisma.user.update({
         where: { id: user.id },
-        data: { twoFactorSecret: secret },
+        data: { twoFactorSecret: encryptedSecret },
       });
 
       return NextResponse.json({
@@ -96,7 +100,19 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const isValid = verifyTOTP(token, user.twoFactorSecret);
+      // Decrypt the secret for verification
+      const decryptedSecret = decryptSecret(user.twoFactorSecret);
+      if (!decryptedSecret) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: "2FA setup corrupted, please restart setup",
+          },
+          { status: 400 }
+        );
+      }
+
+      const isValid = verifyTOTP(token, decryptedSecret);
       if (!isValid) {
         return NextResponse.json(
           { success: false, message: "Invalid verification code" },
