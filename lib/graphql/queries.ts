@@ -113,6 +113,19 @@ export const CREATE_CATEGORY_MUTATION = gql`
   }
 `;
 
+export const UPDATE_CATEGORY_MUTATION = gql`
+  mutation UpdateCategory($input: UpdateCategoryInput!) {
+    updateCategory(input: $input) {
+      id
+      name
+      icon
+      color
+      type
+      createdAt
+    }
+  }
+`;
+
 export const CREATE_TRANSACTION_MUTATION = gql`
   mutation CreateTransaction($input: CreateTransactionInput!) {
     createTransaction(input: $input) {

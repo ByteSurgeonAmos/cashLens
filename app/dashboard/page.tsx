@@ -24,11 +24,11 @@ export default function DashboardPage() {
   } = useQuery(MONTHLY_DATA_QUERY, {
     variables: { year: currentYear },
     skip: status !== "authenticated",
-    fetchPolicy: "cache-first", // Use cached data when available
-    nextFetchPolicy: "cache-only", // After first fetch, only use cache
+    fetchPolicy: "cache-first",
+    nextFetchPolicy: "cache-only",
     notifyOnNetworkStatusChange: false,
     errorPolicy: "ignore",
-    pollInterval: 0, // Disable automatic polling
+    pollInterval: 0,
   });
 
   const monthly = useMemo(() => monthlyData?.monthlyData, [monthlyData]);
