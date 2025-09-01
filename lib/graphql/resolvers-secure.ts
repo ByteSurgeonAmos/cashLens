@@ -1,12 +1,16 @@
 import { PrismaClient } from "@prisma/client";
 import { PubSub } from "graphql-subscriptions";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../auth/auth-options";
 import { GraphQLScalarType, Kind } from "graphql";
 import {
   requireAuth,
   requireOwnership,
+  applyUserFilter,
   auditLog,
   checkGraphQLRateLimit,
   sanitizeError,
+  AuthenticatedContext,
 } from "../security/auth-utils";
 import {
   transactionSchema,
@@ -284,204 +288,16 @@ export const resolvers = {
         const incomeAmount = Number(totalIncome._sum.amount) || 0;
         const expenseAmount = Number(totalExpenses._sum.amount) || 0;
 
-        const categoriesCount = await prisma.category.count({
-          where: { userId: auth.userId },
-        });
-
         const stats = {
           totalIncome: incomeAmount,
           totalExpenses: expenseAmount,
-          balance: incomeAmount - expenseAmount,
-          transactionCount: totalTransactions,
-          categoriesCount,
+          totalTransactions,
+          totalBudgets,
+          netIncome: incomeAmount - expenseAmount,
         };
 
         await auditLog(auth.userId, "VIEW_DASHBOARD_STATS", "dashboard");
         return stats;
-      } catch (error) {
-        throw sanitizeError(
-          error as Error,
-          process.env.NODE_ENV === "development"
-        );
-      }
-    },
-
-    dashboardStatsComparison: async (_: any, __: any, context: any) => {
-      try {
-        const auth = await requireAuth(context);
-
-        if (
-          !checkGraphQLRateLimit(auth.userId, "dashboardStatsComparison", 30)
-        ) {
-          throw new Error("Rate limit exceeded");
-        }
-
-        const now = new Date();
-        const currentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const previousMonth = new Date(
-          now.getFullYear(),
-          now.getMonth() - 1,
-          1
-        );
-        const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-
-        const [currentIncome, currentExpenses, currentTransactions] =
-          await Promise.all([
-            prisma.transaction.aggregate({
-              where: {
-                userId: auth.userId,
-                type: "INCOME",
-                date: { gte: currentMonth, lt: nextMonth },
-              },
-              _sum: { amount: true },
-            }),
-            prisma.transaction.aggregate({
-              where: {
-                userId: auth.userId,
-                type: "EXPENSE",
-                date: { gte: currentMonth, lt: nextMonth },
-              },
-              _sum: { amount: true },
-            }),
-            prisma.transaction.count({
-              where: {
-                userId: auth.userId,
-                date: { gte: currentMonth, lt: nextMonth },
-              },
-            }),
-          ]);
-
-        const [previousIncome, previousExpenses, previousTransactions] =
-          await Promise.all([
-            prisma.transaction.aggregate({
-              where: {
-                userId: auth.userId,
-                type: "INCOME",
-                date: { gte: previousMonth, lt: currentMonth },
-              },
-              _sum: { amount: true },
-            }),
-            prisma.transaction.aggregate({
-              where: {
-                userId: auth.userId,
-                type: "EXPENSE",
-                date: { gte: previousMonth, lt: currentMonth },
-              },
-              _sum: { amount: true },
-            }),
-            prisma.transaction.count({
-              where: {
-                userId: auth.userId,
-                date: { gte: previousMonth, lt: currentMonth },
-              },
-            }),
-          ]);
-
-        const currentIncomeAmount = Number(currentIncome._sum.amount) || 0;
-        const currentExpenseAmount = Number(currentExpenses._sum.amount) || 0;
-        const previousIncomeAmount = Number(previousIncome._sum.amount) || 0;
-        const previousExpenseAmount = Number(previousExpenses._sum.amount) || 0;
-
-        const [currentCategoriesCount, previousCategoriesCount] =
-          await Promise.all([
-            prisma.category.count({
-              where: {
-                userId: auth.userId,
-                createdAt: { gte: currentMonth, lt: nextMonth },
-              },
-            }),
-            prisma.category.count({
-              where: {
-                userId: auth.userId,
-                createdAt: { gte: previousMonth, lt: currentMonth },
-              },
-            }),
-          ]);
-
-        const current = {
-          totalIncome: currentIncomeAmount,
-          totalExpenses: currentExpenseAmount,
-          balance: currentIncomeAmount - currentExpenseAmount,
-          transactionCount: currentTransactions,
-          categoriesCount: currentCategoriesCount,
-        };
-
-        const previous = {
-          totalIncome: previousIncomeAmount,
-          totalExpenses: previousExpenseAmount,
-          balance: previousIncomeAmount - previousExpenseAmount,
-          transactionCount: previousTransactions,
-          categoriesCount: previousCategoriesCount,
-        };
-
-        const comparison = {
-          current,
-          previous,
-          incomeChange: currentIncomeAmount - previousIncomeAmount,
-          expensesChange: currentExpenseAmount - previousExpenseAmount,
-          balanceChange: current.balance - previous.balance,
-          transactionCountChange: currentTransactions - previousTransactions,
-        };
-
-        await auditLog(auth.userId, "VIEW_DASHBOARD_COMPARISON", "dashboard");
-        return comparison;
-      } catch (error) {
-        throw sanitizeError(
-          error as Error,
-          process.env.NODE_ENV === "development"
-        );
-      }
-    },
-
-    monthlyData: async (_: any, args: any, context: any) => {
-      try {
-        const auth = await requireAuth(context);
-        const { year } = sanitizeInput(args);
-
-        if (!checkGraphQLRateLimit(auth.userId, "monthlyData", 20)) {
-          throw new Error("Rate limit exceeded");
-        }
-
-        const monthlyData = [];
-
-        for (let month = 0; month < 12; month++) {
-          const startDate = new Date(year, month, 1);
-          const endDate = new Date(year, month + 1, 1);
-
-          const [income, expenses] = await Promise.all([
-            prisma.transaction.aggregate({
-              where: {
-                userId: auth.userId,
-                type: "INCOME",
-                date: { gte: startDate, lt: endDate },
-              },
-              _sum: { amount: true },
-            }),
-            prisma.transaction.aggregate({
-              where: {
-                userId: auth.userId,
-                type: "EXPENSE",
-                date: { gte: startDate, lt: endDate },
-              },
-              _sum: { amount: true },
-            }),
-          ]);
-
-          monthlyData.push({
-            month: startDate.toLocaleString("default", { month: "long" }),
-            income: Number(income._sum.amount) || 0,
-            expenses: Number(expenses._sum.amount) || 0,
-          });
-        }
-
-        await auditLog(
-          auth.userId,
-          "VIEW_MONTHLY_DATA",
-          "dashboard",
-          undefined,
-          { year }
-        );
-        return monthlyData;
       } catch (error) {
         throw sanitizeError(
           error as Error,
@@ -564,6 +380,7 @@ export const resolvers = {
 
         await requireOwnership(auth.userId, id, "category");
 
+        // Check if category has associated transactions
         const transactionCount = await prisma.transaction.count({
           where: { categoryId: id },
         });
@@ -577,7 +394,7 @@ export const resolvers = {
         });
 
         await auditLog(auth.userId, "DELETE_CATEGORY", "category", id);
-        return true;
+        return category;
       } catch (error) {
         throw sanitizeError(
           error as Error,
@@ -599,6 +416,7 @@ export const resolvers = {
           sanitizeInput(args.input)
         );
 
+        // Verify category ownership
         await requireOwnership(
           auth.userId,
           validatedData.categoryId,
@@ -624,8 +442,9 @@ export const resolvers = {
           validatedData
         );
 
-        pubsub.publish("TRANSACTION_ADDED", {
-          transactionAdded: transaction,
+        // Publish subscription event
+        pubsub.publish("TRANSACTION_CREATED", {
+          transactionCreated: transaction,
         });
 
         return transaction;
@@ -646,6 +465,7 @@ export const resolvers = {
 
         const validatedData = validateInput(transactionSchema.partial(), input);
 
+        // If categoryId is being updated, verify ownership
         if (validatedData.categoryId) {
           await requireOwnership(
             auth.userId,
@@ -670,11 +490,6 @@ export const resolvers = {
           id,
           validatedData
         );
-
-        pubsub.publish("TRANSACTION_UPDATED", {
-          transactionUpdated: transaction,
-        });
-
         return transaction;
       } catch (error) {
         throw sanitizeError(
@@ -696,12 +511,7 @@ export const resolvers = {
         });
 
         await auditLog(auth.userId, "DELETE_TRANSACTION", "transaction", id);
-
-        pubsub.publish("TRANSACTION_DELETED", {
-          transactionDeleted: id,
-        });
-
-        return true;
+        return transaction;
       } catch (error) {
         throw sanitizeError(
           error as Error,
@@ -723,6 +533,7 @@ export const resolvers = {
           sanitizeInput(args.input)
         );
 
+        // Verify category ownership
         await requireOwnership(
           auth.userId,
           validatedData.categoryId,
@@ -746,11 +557,6 @@ export const resolvers = {
           budget.id,
           validatedData
         );
-
-        pubsub.publish("BUDGET_UPDATED", {
-          budgetUpdated: budget,
-        });
-
         return budget;
       } catch (error) {
         throw sanitizeError(
@@ -769,6 +575,7 @@ export const resolvers = {
 
         const validatedData = validateInput(budgetSchema.partial(), input);
 
+        // If categoryId is being updated, verify ownership
         if (validatedData.categoryId) {
           await requireOwnership(
             auth.userId,
@@ -798,11 +605,6 @@ export const resolvers = {
           id,
           validatedData
         );
-
-        pubsub.publish("BUDGET_UPDATED", {
-          budgetUpdated: budget,
-        });
-
         return budget;
       } catch (error) {
         throw sanitizeError(
@@ -824,12 +626,7 @@ export const resolvers = {
         });
 
         await auditLog(auth.userId, "DELETE_BUDGET", "budget", id);
-
-        pubsub.publish("BUDGET_UPDATED", {
-          budgetUpdated: budget,
-        });
-
-        return true;
+        return budget;
       } catch (error) {
         throw sanitizeError(
           error as Error,
@@ -840,17 +637,8 @@ export const resolvers = {
   },
 
   Subscription: {
-    transactionAdded: {
-      subscribe: () => pubsub.asyncIterator(["TRANSACTION_ADDED"]),
-    },
-    transactionUpdated: {
-      subscribe: () => pubsub.asyncIterator(["TRANSACTION_UPDATED"]),
-    },
-    transactionDeleted: {
-      subscribe: () => pubsub.asyncIterator(["TRANSACTION_DELETED"]),
-    },
-    budgetUpdated: {
-      subscribe: () => pubsub.asyncIterator(["BUDGET_UPDATED"]),
+    transactionCreated: {
+      subscribe: () => pubsub.asyncIterator(["TRANSACTION_CREATED"]),
     },
   },
 };
