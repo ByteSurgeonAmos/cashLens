@@ -89,12 +89,17 @@ export const HeroSection: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.5 }}
           >
-            Transform your financial future with intelligent tracking,
+            Transform your financial future with intelligent tracking in
+            <span className="text-green-400 font-semibold">
+              {" "}
+              any currency
+            </span>
+            ,
             <span className="text-purple-400 font-semibold">
               {" "}
               AI-powered insights
             </span>
-            , and beautiful visualizations that make money management
+            , and beautiful visualizations that make global money management
             effortless.
           </motion.p>
 

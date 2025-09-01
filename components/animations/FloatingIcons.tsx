@@ -47,6 +47,43 @@ const FloatingIcon: React.FC<{
   );
 };
 
+const FloatingCurrency: React.FC<{
+  symbol: string;
+  delay: number;
+  duration: number;
+  initialX: number;
+  initialY: number;
+  size?: string;
+}> = ({
+  symbol,
+  delay,
+  duration,
+  initialX,
+  initialY,
+  size = "text-2xl",
+}) => {
+  return (
+    <motion.div
+      className={`absolute ${size} font-bold text-green-400 opacity-30`}
+      style={{ left: `${initialX}%`, top: `${initialY}%` }}
+      animate={{
+        y: [0, -15, 0],
+        x: [0, 8, 0],
+        rotate: [0, 3, -3, 0],
+        scale: [1, 1.15, 1],
+      }}
+      transition={{
+        duration,
+        delay,
+        repeat: Infinity,
+        ease: "easeInOut",
+      }}
+    >
+      {symbol}
+    </motion.div>
+  );
+};
+
 export const FloatingIcons: React.FC = () => {
   const icons = [
     {
@@ -81,7 +118,6 @@ export const FloatingIcons: React.FC = () => {
       y: 75,
       size: "w-18 h-18",
     },
-    // { icon: TrendingUpIcon, delay: 1.5, duration: 3.8, x: 5, y: 45, size: "w-10 h-10" }, // Removed because it does not exist
     {
       icon: ShieldCheckIcon,
       delay: 2.5,
@@ -90,6 +126,15 @@ export const FloatingIcons: React.FC = () => {
       y: 45,
       size: "w-14 h-14",
     },
+  ];
+
+  const currencies = [
+    { symbol: "€", delay: 0.3, duration: 4.5, x: 25, y: 30, size: "text-3xl" },
+    { symbol: "£", delay: 1.2, duration: 3.8, x: 75, y: 25, size: "text-2xl" },
+    { symbol: "¥", delay: 2.1, duration: 4.1, x: 20, y: 85, size: "text-3xl" },
+    { symbol: "₹", delay: 1.8, duration: 3.5, x: 85, y: 85, size: "text-2xl" },
+    { symbol: "₿", delay: 0.8, duration: 4.8, x: 45, y: 15, size: "text-xl" },
+    { symbol: "₩", delay: 2.8, duration: 3.9, x: 65, y: 55, size: "text-2xl" },
   ];
 
   return (
@@ -103,6 +148,17 @@ export const FloatingIcons: React.FC = () => {
           initialX={iconData.x}
           initialY={iconData.y}
           size={iconData.size}
+        />
+      ))}
+      {currencies.map((currencyData, index) => (
+        <FloatingCurrency
+          key={`currency-${index}`}
+          symbol={currencyData.symbol}
+          delay={currencyData.delay}
+          duration={currencyData.duration}
+          initialX={currencyData.x}
+          initialY={currencyData.y}
+          size={currencyData.size}
         />
       ))}
     </div>

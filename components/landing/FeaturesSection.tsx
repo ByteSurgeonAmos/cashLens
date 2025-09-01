@@ -102,9 +102,9 @@ export const FeaturesSection: React.FC = () => {
     },
     {
       icon: CurrencyDollarIcon,
-      title: "Budget Mastery",
+      title: "Multi-Currency Support",
       description:
-        "Advanced budgeting tools with smart categories and automated expense tracking for complete control.",
+        "Track finances in any currency - USD, EUR, GBP, JPY, and 100+ more. Automatic conversion rates and global financial management.",
       gradient: "from-indigo-500 to-purple-500",
       delay: 0.5,
     },
