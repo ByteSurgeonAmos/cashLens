@@ -2,11 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @layer base {
   html {
     font-family: Inter, sans-serif;
+    scroll-behavior: smooth;
   }
   
   body {
@@ -57,7 +58,20 @@
     text-wrap: balance;
   }
   
-  /* Custom animations for interactive elements */
+  /* Landing page animations */
+  .animate-float {
+    animation: float 6s ease-in-out infinite;
+  }
+  
+  .animate-glow {
+    animation: glow 2s ease-in-out infinite alternate;
+  }
+  
+  .animate-gradient {
+    animation: gradient 8s ease-in-out infinite;
+    background-size: 200% 200%;
+  }
+  
   .animate-bounce-subtle {
     animation: bounce-subtle 0.6s ease-in-out;
   }
@@ -68,6 +82,45 @@
   
   .animate-shake {
     animation: shake 0.5s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.8s ease-out;
+  }
+  
+  .animate-scale-in {
+    animation: scale-in 0.6s ease-out;
+  }
+  
+  /* Keyframes */
+  @keyframes float {
+    0%, 100% { 
+      transform: translateY(0px);
+    }
+    50% { 
+      transform: translateY(-20px);
+    }
+  }
+  
+  @keyframes glow {
+    from {
+      text-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    }
+    to {
+      text-shadow: 0 0 30px rgba(168, 85, 247, 0.8), 0 0 40px rgba(168, 85, 247, 0.3);
+    }
+  }
+  
+  @keyframes gradient {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
   }
   
   @keyframes bounce-subtle {
@@ -90,6 +143,28 @@
     75% { transform: translateX(4px); }
   }
   
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
   /* Input field enhancements */
   .input-field:focus {
     transform: translateY(-1px);
@@ -102,5 +177,23 @@
   
   .input-field.success {
     animation: pulse-success 1s ease-in-out;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.5);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #a855f7, #ec4899);
+    border-radius: 4px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #9333ea, #db2777);
   }
 }

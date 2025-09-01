@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@apollo/client";
 import {
   GET_BUDGETS_QUERY,
@@ -35,6 +36,8 @@ interface Budget {
 
 export default function BudgetsPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedBudget, setSelectedBudget] = useState<Budget | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [formState, setFormState] = useState<Partial<Budget>>({});
@@ -99,6 +102,33 @@ export default function BudgetsPage() {
       pollInterval: 0,
     }
   );
+
+  // Handle URL parameters for QuickActions
+  useEffect(() => {
+    const action = searchParams.get("action");
+
+    if (action === "create") {
+      setIsEditing(true);
+      setSelectedBudget(null);
+      setFormState({
+        amount: 0,
+        period: "MONTHLY",
+        startDate: new Date().toISOString().split("T")[0],
+        endDate: new Date(
+          new Date().getFullYear(),
+          new Date().getMonth() + 1,
+          0
+        )
+          .toISOString()
+          .split("T")[0],
+      });
+
+      // Clean up URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("action");
+      router.replace(newUrl.pathname, { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const budgets = useMemo(() => budgetsData?.budgets || [], [budgetsData]);
   const categoriesList: Category[] = useMemo(

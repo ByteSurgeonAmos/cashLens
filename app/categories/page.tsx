@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@apollo/client";
 import {
   GET_CATEGORIES_QUERY,
@@ -24,6 +25,8 @@ interface Category {
 
 export default function CategoriesPage() {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(
     null
   );
@@ -77,6 +80,27 @@ export default function CategoriesPage() {
       },
     }
   );
+
+  // Handle URL parameters for QuickActions
+  useEffect(() => {
+    const action = searchParams.get("action");
+
+    if (action === "create") {
+      setIsEditing(true);
+      setSelectedCategory(null);
+      setFormState({
+        name: "",
+        icon: "📁",
+        color: "#3B82F6",
+        type: "EXPENSE",
+      });
+
+      // Clean up URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("action");
+      router.replace(newUrl.pathname, { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const categories = useMemo(
     () => categoriesData?.categories || [],

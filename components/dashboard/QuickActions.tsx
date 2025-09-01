@@ -15,7 +15,7 @@ export function QuickActions() {
       icon: "💰",
       color: "bg-success-50 border-success-200 hover:bg-success-100",
       textColor: "text-success-700",
-      href: "/transactions/new?type=income",
+      href: "/transactions?action=add&type=income",
     },
     {
       id: "add-expense",
@@ -24,7 +24,7 @@ export function QuickActions() {
       icon: "💸",
       color: "bg-danger-50 border-danger-200 hover:bg-danger-100",
       textColor: "text-danger-700",
-      href: "/transactions/new?type=expense",
+      href: "/transactions?action=add&type=expense",
     },
     {
       id: "create-budget",
@@ -33,7 +33,7 @@ export function QuickActions() {
       icon: "🎯",
       color: "bg-primary-50 border-primary-200 hover:bg-primary-100",
       textColor: "text-primary-700",
-      href: "/budgets/new",
+      href: "/budgets?action=create",
     },
     {
       id: "add-category",
@@ -42,7 +42,7 @@ export function QuickActions() {
       icon: "🏷️",
       color: "bg-purple-50 border-purple-200 hover:bg-purple-100",
       textColor: "text-purple-700",
-      href: "/categories/new",
+      href: "/categories?action=create",
     },
   ];
 

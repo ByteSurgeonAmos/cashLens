@@ -56,9 +56,12 @@ export const RecentTransactions = memo(function RecentTransactions() {
         <h3 className="text-lg font-semibold text-gray-900">
           Recent Transactions
         </h3>
-        <button className="text-primary-600 hover:text-primary-700 text-sm font-medium">
+        <a
+          href="/transactions"
+          className="text-primary-600 hover:text-primary-700 text-sm font-medium"
+        >
           View all
-        </button>
+        </a>
       </div>
 
       <div className="space-y-3">

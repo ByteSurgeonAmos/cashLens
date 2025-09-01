@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@apollo/client";
 import {
   GET_TRANSACTIONS_QUERY,
@@ -75,6 +75,7 @@ const ITEMS_PER_PAGE = 20;
 export default function TransactionsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { formatCurrency } = useCurrency();
 
   // State management
@@ -107,6 +108,32 @@ export default function TransactionsPage() {
     sortOrder: "desc",
     search: "",
   });
+
+  // Handle URL parameters for QuickActions
+  useEffect(() => {
+    const action = searchParams.get("action");
+    const type = searchParams.get("type");
+
+    if (action === "add" && (type === "income" || type === "expense")) {
+      setShowTransactionModal(true);
+      // Set the initial form data for the modal based on type
+      setEditingTransaction({
+        id: "",
+        amount: 0,
+        description: "",
+        type: type.toUpperCase() as "INCOME" | "EXPENSE",
+        date: new Date().toISOString().split("T")[0],
+        createdAt: "",
+        category: { id: "", name: "", icon: "", color: "" },
+      });
+
+      // Clean up URL parameters
+      const newUrl = new URL(window.location.href);
+      newUrl.searchParams.delete("action");
+      newUrl.searchParams.delete("type");
+      router.replace(newUrl.pathname, { scroll: false });
+    }
+  }, [searchParams, router]);
 
   // Redirect if not authenticated
   useEffect(() => {
