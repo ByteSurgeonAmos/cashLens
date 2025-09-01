@@ -15,8 +15,8 @@ import {
   sanitizeInput,
   validateInput,
 } from "../security/validation";
+import { prisma } from "../prisma";
 
-const prisma = new PrismaClient();
 const pubsub = new PubSub();
 
 const DateTimeScalar = new GraphQLScalarType({

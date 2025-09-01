@@ -2,8 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/auth-options";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 export interface AuthenticatedContext {
   userId: string;

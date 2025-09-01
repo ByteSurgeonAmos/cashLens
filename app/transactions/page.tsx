@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@apollo/client";
@@ -72,7 +72,7 @@ interface FilterState {
 
 const ITEMS_PER_PAGE = 20;
 
-export default function TransactionsPage() {
+function TransactionsPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -548,5 +548,13 @@ export default function TransactionsPage() {
         onSuccess={refetchTransactions}
       />
     </Layout>
+  );
+}
+
+export default function TransactionsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <TransactionsPageContent />
+    </Suspense>
   );
 }

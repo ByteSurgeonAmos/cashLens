@@ -1,8 +1,7 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 export const registerSchema = z.object({
   email: z.string().email("Invalid email format"),

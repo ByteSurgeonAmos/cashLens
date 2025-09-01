@@ -11,8 +11,7 @@ import {
   getUserByEmail,
 } from "./auth-utils";
 import { z } from "zod";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(prisma),

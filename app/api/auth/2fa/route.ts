@@ -8,11 +8,8 @@ import {
   enableTwoFactor,
   verifyTOTP,
 } from "../../../../lib/auth/two-factor";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../../../../lib/prisma";
 
-const prisma = new PrismaClient();
-
-// GET: Generate 2FA setup data (secret and QR code)
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -65,7 +62,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST: Enable 2FA with verification
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -106,7 +102,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the TOTP token
     if (!verifyTOTP(token, secret)) {
       return NextResponse.json(
         { success: false, message: "Invalid verification code" },
@@ -114,7 +109,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Enable 2FA for the user
     await enableTwoFactor(user.id, secret, backupCodes);
 
     return NextResponse.json({
@@ -130,7 +124,6 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// DELETE: Disable 2FA
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -176,7 +169,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify password
     const bcrypt = require("bcryptjs");
     if (
       !user.hashedPassword ||
@@ -188,7 +180,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Verify 2FA token
     const { validateTwoFactor } = await import(
       "../../../../lib/auth/two-factor"
     );
@@ -199,7 +190,6 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Disable 2FA
     const { disableTwoFactor } = await import(
       "../../../../lib/auth/two-factor"
     );

@@ -1,10 +1,7 @@
 import QRCode from "qrcode";
-import speakeasy from "speakeasy";
 import CryptoJS from "crypto-js";
-import { PrismaClient } from "@prisma/client";
 import { createHmac } from "crypto";
-
-const prisma = new PrismaClient();
+import { prisma } from "../prisma";
 
 const ENCRYPTION_KEY =
   process.env.TWOFA_ENCRYPTION_KEY ||

@@ -1,0 +1,12 @@
+{
+  "buildCommand": "prisma generate && npm run build",
+  "installCommand": "npm install && prisma generate",
+  "env": {
+    "SKIP_ENV_VALIDATION": "1"
+  },
+  "functions": {
+    "app/api/**/*.ts": {
+      "maxDuration": 30
+    }
+  }
+}

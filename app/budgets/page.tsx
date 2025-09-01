@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useMutation } from "@apollo/client";
@@ -34,7 +34,7 @@ interface Budget {
   category: Category;
 }
 
-export default function BudgetsPage() {
+function BudgetsPageContent() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -353,5 +353,13 @@ export default function BudgetsPage() {
         />
       </div>
     </Layout>
+  );
+}
+
+export default function BudgetsPage() {
+  return (
+    <Suspense fallback={<LoadingSpinner />}>
+      <BudgetsPageContent />
+    </Suspense>
   );
 }

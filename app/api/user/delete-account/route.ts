@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../../lib/auth/auth-options";
 import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../../../../lib/prisma";
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -18,9 +17,7 @@ export async function DELETE(request: NextRequest) {
 
     const userEmail = session.user.email;
 
-    // Start a transaction to delete all user data
     await prisma.$transaction(async (tx) => {
-      // Delete all user transactions first (due to foreign key constraints)
       await tx.transaction.deleteMany({
         where: {
           user: {
@@ -29,7 +26,6 @@ export async function DELETE(request: NextRequest) {
         },
       });
 
-      // Delete all user budgets
       await tx.budget.deleteMany({
         where: {
           user: {
@@ -38,7 +34,6 @@ export async function DELETE(request: NextRequest) {
         },
       });
 
-      // Delete all user categories
       await tx.category.deleteMany({
         where: {
           user: {
@@ -47,7 +42,6 @@ export async function DELETE(request: NextRequest) {
         },
       });
 
-      // Finally, delete the user account
       await tx.user.delete({
         where: {
           email: userEmail,
