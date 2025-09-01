@@ -27,6 +27,7 @@
     "@types/qrcode": "^1.5.5",
     "@types/sharp": "^0.31.1",
     "@types/speakeasy": "^2.0.10",
+    "@vercel/analytics": "^1.5.0",
     "bcryptjs": "^2.4.3",
     "chart.js": "^4.5.0",
     "crypto-js": "^4.2.0",

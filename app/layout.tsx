@@ -4,7 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "../components/providers/AuthProvider";
 import { ApolloProvider } from "../components/providers/ApolloProvider";
 import { CurrencyProvider } from "../contexts/CurrencyContext";
-
+import { Analytics } from "@vercel/analytics/next";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
@@ -22,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <Analytics />
         <AuthProvider>
           <ApolloProvider>
             <CurrencyProvider>{children}</CurrencyProvider>
