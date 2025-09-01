@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "../../../../lib/auth/auth-options";
 import { hashPassword, verifyPassword } from "../../../../lib/auth/auth-utils";
 import { z } from "zod";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../../../../lib/prisma";
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),

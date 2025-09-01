@@ -10,7 +10,7 @@ import {
   encryptSecret,
   decryptSecret,
 } from "../../../../lib/auth/two-factor";
-import { prisma } from "@/lib/prisma";
+import { prisma } from "../../../../lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
