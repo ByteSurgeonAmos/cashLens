@@ -90,7 +90,11 @@ export const HeroSection: React.FC = () => {
             transition={{ duration: 1, delay: 0.5 }}
           >
             Transform your financial future with
-            <span className="text-blue-400 font-semibold"> realtime tracking</span> in
+            <span className="text-blue-400 font-semibold">
+              {" "}
+              realtime tracking
+            </span>{" "}
+            in
             <span className="text-green-400 font-semibold"> any currency</span>,
             <span className="text-purple-400 font-semibold">
               {" "}
