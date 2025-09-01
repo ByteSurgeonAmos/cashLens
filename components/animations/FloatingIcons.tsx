@@ -54,14 +54,7 @@ const FloatingCurrency: React.FC<{
   initialX: number;
   initialY: number;
   size?: string;
-}> = ({
-  symbol,
-  delay,
-  duration,
-  initialX,
-  initialY,
-  size = "text-2xl",
-}) => {
+}> = ({ symbol, delay, duration, initialX, initialY, size = "text-2xl" }) => {
   return (
     <motion.div
       className={`absolute ${size} font-bold text-green-400 opacity-30`}

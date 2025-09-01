@@ -120,10 +120,19 @@ export const CTASection: React.FC = () => {
             animate={inView ? { opacity: 1, y: 0 } : {}}
             transition={{ duration: 1, delay: 0.5 }}
           >
-            Join thousands of users worldwide who have taken control of their finances
-            with CashLens. Track expenses in 
-            <span className="text-green-400 font-semibold"> any currency</span> - 
-            USD, EUR, GBP, JPY, and 100+ more. Start your journey to financial freedom today.
+            Join thousands of users worldwide who have taken control of their
+            finances with CashLens.
+            <span className="text-blue-400 font-semibold">
+              {" "}
+              Realtime tracking
+            </span>{" "}
+            in
+            <span className="text-green-400 font-semibold">
+              {" "}
+              any currency
+            </span>{" "}
+            - USD, EUR, GBP, JPY, and 100+ more. Start your journey to financial
+            freedom today.
           </motion.p>
 
           <motion.div

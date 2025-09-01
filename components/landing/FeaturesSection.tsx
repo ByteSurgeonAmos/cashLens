@@ -86,9 +86,9 @@ export const FeaturesSection: React.FC = () => {
     },
     {
       icon: BoltIcon,
-      title: "Lightning Fast",
+      title: "Realtime Sync",
       description:
-        "Instant transaction syncing and real-time updates keep you informed about your finances 24/7.",
+        "Lightning-fast realtime transaction syncing and instant updates keep you informed about your finances 24/7.",
       gradient: "from-yellow-500 to-orange-500",
       delay: 0.3,
     },
